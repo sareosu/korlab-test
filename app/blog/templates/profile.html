@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<h2>User Information</h2>
+<ul class="user-info">
+    <li>Username: {{ user.username }}</li>
+    <li>Email: {{ user.email }}</li>
+    <li>Full Name: {{ user.first_name }} {{ user.last_name }}</li>
+</ul>
+
+<div class="btn-group">
+    <button type="button" id="btnName">Update Full Name</button>
+    <button type="button" id="btnPassword">Change Password</button>
+</div>
+
+<div id="formName" style="display:none;">
+    <form method="post" action="{% url 'profile' %}" class="profile-form">
+        {% csrf_token %}
+        {{ name_form.full_name.label_tag }}
+        {{ name_form.full_name }}
+        <button type="submit" name="update_name">Update Name</button>
+    </form>
+</div>
+
+<div id="formPassword" style="display:none;">
+    <form method="post" action="{% url 'profile' %}" class="profile-form">
+        {% csrf_token %}
+        {{ password_form.as_p }}
+        <button type="submit" name="change_password">Change Password</button>
+    </form>
+</div>
+
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<h2 style="color:#444; margin-bottom: 20px;">Write a New Post</h2>
+
+<form method="POST" action="{% url 'new_post' %}" style="margin-bottom: 40px;">
+    {% csrf_token %}
+    <textarea name="content" rows="4" style="width:100%; border-radius:6px; border:1px solid #ccc; padding:10px; font-size: 1rem;" placeholder="Type your new post here..." required></textarea>
+    <button type="submit" class="btn-primary" style="margin-top:10px; border-radius:6px; background-color:#444; color:#fff; border:none; padding:8px 16px; cursor:pointer;">Post</button>
+</form>
+
+<hr style="border: none; border-top: 1px solid #ccc; margin-bottom: 30px;">
+
+<h2 style="color:#444; margin-bottom: 15px;">Your Posts</h2>
+
+{% for post in posts %}
+  <div class="post-card">
+    <div class="post-content" id="post-content-{{ post.id }}">
+      {{ post.content }}
+    </div>
+
+    <!-- Edit form - прихована за замовчуванням -->
+    <form method="POST" action="{% url 'edit_post' post.id %}" class="edit-form" id="edit-form-{{ post.id }}">
+      {% csrf_token %}
+      <textarea name="content" rows="4">{{ post.content }}</textarea>
+      <div class="edit-buttons">
+        <button type="submit" class="btn-primary">Save</button>
+        <button type="button" class="btn-secondary" onclick="cancelEdit({{ post.id }})">Cancel</button>
+      </div>
+    </form>
+
+    <div class="post-actions">
+      <button class="btn-primary" onclick="showEditForm({{ post.id }})">Edit</button>
+
+      <form method="POST" action="{% url 'delete_post' post.id %}" class="inline-form">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Delete</button>
+      </form>
+    </div>
+  </div>
+{% empty %}
+  <p class="no-posts">You have no posts yet.</p>
+{% endfor %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const btnName = document.getElementById('btnName');
+        const btnPassword = document.getElementById('btnPassword');
+        const formName = document.getElementById('formName');
+        const formPassword = document.getElementById('formPassword');
+
+        btnName.addEventListener('click', () => {
+            if (formName.style.display === 'none') {
+                formName.style.display = 'block';
+                formPassword.style.display = 'none';
+            } else {
+                formName.style.display = 'none';
+            }
+        });
+
+        btnPassword.addEventListener('click', () => {
+            if (formPassword.style.display === 'none') {
+                formPassword.style.display = 'block';
+                formName.style.display = 'none';
+            } else {
+                formPassword.style.display = 'none';
+            }
+        });
+    });
+
+  function showEditForm(postId) {
+    document.getElementById('post-content-' + postId).style.display = 'none';
+    document.getElementById('edit-form-' + postId).style.display = 'block';
+  }
+  function cancelEdit(postId) {
+    document.getElementById('edit-form-' + postId).style.display = 'none';
+    document.getElementById('post-content-' + postId).style.display = 'block';
+  }
+  
+    // Відкриття форм редагування постів
+  document.querySelectorAll('.edit-post-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const postId = button.dataset.postId;
+      const form = document.getElementById(`editPostForm-${postId}`);
+      form.classList.toggle('show');
+    });
+  });
+
+  // Обробка сабміту форми редагування поста через AJAX
+  document.querySelectorAll('.edit-post-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const postId = form.dataset.postId;
+      const formData = new FormData(form);
+
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        // Оновити список постів після успішного оновлення
+        await loadPosts();
+      } else {
+        alert('Failed to update post');
+      }
+    });
+  });
+
+  // Функція завантаження оновлених постів
+  async function loadPosts() {
+    const response = await fetch('/posts/ajax-list/');
+    if (response.ok) {
+      const html = await response.text();
+      document.getElementById('postsContainer').innerHTML = html;
+      // Потрібно заново підвісити події на кнопки та форми після оновлення
+      attachPostEventListeners();
+    }
+  }
+
+  // Функція підвісити слухачі подій на кнопки і форми (щоб працювало після ajax-підвантаження)
+  function attachPostEventListeners() {
+    document.querySelectorAll('.edit-post-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const postId = button.dataset.postId;
+        const form = document.getElementById(`editPostForm-${postId}`);
+        form.classList.toggle('show');
+      });
+    });
+
+    document.querySelectorAll('.edit-post-form').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const postId = form.dataset.postId;
+        const formData = new FormData(form);
+
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          await loadPosts();
+        } else {
+          alert('Failed to update post');
+        }
+      });
+    });
+  }
+
+  // CSRF token helper
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  } 
+</script>
+
+{% endblock content %}
+

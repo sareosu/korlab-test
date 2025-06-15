@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+  {% for post in posts %}
+    <div class="post-card">
+      <div class="post-header">
+        <strong>{{ post.author.get_full_name|default:post.author.username }}</strong>
+      </div>
+
+      <div class="post-body">
+        <p style="white-space: pre-wrap;">{{ post.content }}</p>
+      </div>
+
+      <div class="toggle-comments" onclick="toggleComments(this)">
+        <span class="arrow">▸</span> Comments
+      </div>
+
+      <div class="comments-block" style="display: none;">
+        <div class="comments-list" style="margin-bottom: 10px;">
+          {% for comment in post.comments.all %}
+            <div class="comment">
+              <strong>{{ comment.author.get_full_name|default:comment.author.username }}:</strong>
+              <span>{{ comment.content }}</span>
+              <small style="color:#777; font-size:0.8rem;">{{ comment.created_at|date:"d M Y H:i" }}</small>
+            </div>
+          {% empty %}
+            <p>No comments yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p>No posts yet.</p>
+  {% endfor %}
+
+<script>
+  function toggleComments(element) {
+    const commentsBlock = element.nextElementSibling;
+    const arrow = element.querySelector('.arrow');
+    const isVisible = commentsBlock.style.display === 'block';
+
+    if (isVisible) {
+      commentsBlock.style.display = 'none';
+      arrow.textContent = '▸';
+    } else {
+      commentsBlock.style.display = 'block';
+      arrow.textContent = '▾';
+    }
+  }
+</script>
+{% endblock %}
+
