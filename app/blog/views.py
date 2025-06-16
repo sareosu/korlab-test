@@ -6,7 +6,7 @@ from django.contrib import messages
 from .forms import LoginForm
 from .forms import UpdateFullNameForm 
 from django.contrib.auth.forms import PasswordChangeForm 
-from .models import Post
+from .models import Post, Comment
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.views import LogoutView
 from django.http import HttpResponse
